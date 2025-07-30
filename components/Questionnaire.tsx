@@ -32,7 +32,7 @@ const BooleanInput: React.FC<{ value: boolean | null, onChange: (value: boolean)
   </div>
 );
 
-const TextInput: React.FC<{ value: string, onChange: (value: string) }> = ({ value, onChange }) => (
+const TextInput: React.FC<{ value: string, onChange: (value: string) => void }> = ({ value, onChange }) => (
     <input
         type="text"
         value={value}
@@ -42,7 +42,7 @@ const TextInput: React.FC<{ value: string, onChange: (value: string) }> = ({ val
     />
 );
 
-const TextBlockInput: React.FC<{ value: string, onChange: (value: string) }> = ({ value, onChange }) => (
+const TextBlockInput: React.FC<{ value: string, onChange: (value: string) => void }> = ({ value, onChange }) => (
     <textarea
         value={value}
         onChange={(e) => onChange(e.target.value)}
@@ -151,7 +151,7 @@ const EvidenceBlock: React.FC<{
                             <input type="file" className="hidden" onChange={onFileChange} accept=".pdf,.jpg,.jpeg,.png,.txt,.doc,.docx" />
                         </label>
                     )}
-                    <p className="text-xs text-slate-500 mt-2">Tipos aceitos: PDF, JPG, PNG, TXT, DOC, DOCX.</p>
+                    <p className="text-xs text-slate-500 mt-2">Tipos aceitos: PDF, JPG, PNG, TXT, DOC, DOCX. Tamanho máximo: 2MB.</p>
                 </div>
             </div>
         </div>
@@ -219,6 +219,15 @@ const Questionnaire: React.FC<QuestionnaireProps> = ({ topic, questionsForTopic,
           const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
             const file = e.target.files?.[0];
             if (!file) return;
+
+            const MAX_SIZE_MB = 2;
+            const MAX_SIZE_BYTES = MAX_SIZE_MB * 1024 * 1024;
+            if (file.size > MAX_SIZE_BYTES) {
+                alert(`O arquivo é muito grande (${(file.size / 1024 / 1024).toFixed(2)}MB). O tamanho máximo permitido é de ${MAX_SIZE_MB}MB.`);
+                e.target.value = '';
+                return;
+            }
+
             const reader = new FileReader();
             reader.onload = (event) => {
                 const content = event.target?.result as string;
