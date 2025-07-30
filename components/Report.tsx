@@ -136,47 +136,6 @@ const formatAnswerValueForDisplay = (value: AnswerValue): { text: string, color:
     return { text: String(value), color: 'text-slate-800' };
 };
 
-const SimpleMarkdownRenderer: React.FC<{ text: string }> = ({ text }) => {
-    const nodes: React.ReactNode[] = [];
-    const lines = text.split('\n');
-    let inList = false;
-    let listItems: React.ReactNode[] = [];
-
-    const flushList = () => {
-        if (inList) {
-            nodes.push(<ul key={`ul-${nodes.length}`} className="list-disc pl-5 space-y-1 my-3">{listItems}</ul>);
-            listItems = [];
-            inList = false;
-        }
-    };
-
-    const renderLineContent = (line: string) => {
-        return line.split('**').map((part, index) =>
-            index % 2 === 1 ? <strong key={index} className="font-semibold text-slate-900">{part}</strong> : part
-        );
-    };
-
-    lines.forEach((line, i) => {
-        const trimmedLine = line.trim();
-        if (trimmedLine.startsWith('* ') || trimmedLine.startsWith('- ')) {
-            if (!inList) flushList();
-            inList = true;
-            listItems.push(<li key={i}>{renderLineContent(trimmedLine.substring(2))}</li>);
-        } else {
-            flushList();
-            if (trimmedLine.startsWith('## ')) {
-                nodes.push(<h2 key={i} className="text-lg font-semibold text-slate-800 mt-4 mb-2">{renderLineContent(trimmedLine.substring(3))}</h2>);
-            } else if (trimmedLine) {
-                nodes.push(<p key={i} className="my-2">{renderLineContent(trimmedLine)}</p>);
-            }
-        }
-    });
-
-    flushList();
-    return <>{nodes}</>;
-};
-
-
 // --- Modals ---
 
 const ResponseDetailModal: React.FC<{
@@ -256,21 +215,72 @@ const ReviewModal: React.FC<{
   answers: AnswersState;
 }> = ({ isOpen, onClose, questions, answers }) => {
     if (!isOpen) return null;
+
     return (
-        <div className="fixed inset-0 bg-slate-50 z-50 flex flex-col animate-fade-in">
-            <header className="flex-shrink-0 bg-white/80 backdrop-blur-sm shadow-sm sticky top-0 z-10">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                    <div className="flex justify-between items-center h-20">
-                        <h2 className="text-2xl font-bold text-slate-800">Revisão de Deficiências</h2>
-                        <button onClick={onClose} className="p-2 text-slate-500 hover:bg-slate-100 rounded-full transition-colors">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
-                        </button>
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex flex-col animate-fade-in" role="dialog" aria-modal="true">
+            <div className="bg-slate-50 h-full flex flex-col">
+                <header className="flex-shrink-0 bg-white/80 backdrop-blur-sm shadow-sm sticky top-0 z-10">
+                    <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+                        <div className="flex justify-between items-center h-20">
+                            <div>
+                                <h2 className="text-2xl font-bold text-slate-800">Revisão de Pontos de Melhoria</h2>
+                                <p className="text-slate-600 text-sm mt-1">{questions.length} ponto(s) identificado(s)</p>
+                            </div>
+                            <button onClick={onClose} className="p-2 text-slate-500 hover:bg-slate-100 rounded-full transition-colors" aria-label="Fechar modal">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                            </button>
+                        </div>
                     </div>
-                </div>
-            </header>
-            <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
-                {/* Content for reviewing deficiencies would go here */}
-            </main>
+                </header>
+                <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
+                    <div className="max-w-5xl mx-auto">
+                        {questions.length > 0 ? (
+                            <div className="space-y-6">
+                                {questions.map((q) => {
+                                    const answer = answers[q.id];
+                                    const formattedValue = formatAnswerValueForDisplay(answer?.value);
+                                    return (
+                                        <div key={q.id} className="bg-white rounded-xl shadow-md border border-slate-200 overflow-hidden">
+                                            <div className="p-5">
+                                                <p className="text-xs font-mono text-slate-500">{q.id} &bull; {q.reference}</p>
+                                                <p className="mt-2 text-lg font-semibold text-slate-800">{q.text}</p>
+                                            </div>
+                                            <div className="bg-slate-50 p-5 border-t border-slate-200 space-y-4">
+                                                <div>
+                                                    <h4 className="text-sm font-bold text-slate-600 mb-2">Resposta Fornecida</h4>
+                                                    <p className={`font-semibold ${formattedValue.color}`}>{formattedValue.text}</p>
+                                                </div>
+                                                <div>
+                                                    <h4 className="text-sm font-bold text-slate-600 mb-2">Justificativa e Evidências</h4>
+                                                    {answer?.evidence ? (
+                                                        <p className="text-slate-700 whitespace-pre-wrap bg-white p-3 rounded-md border border-slate-200">{answer.evidence}</p>
+                                                    ) : (
+                                                        <p className="text-slate-500 italic">Nenhuma justificativa fornecida.</p>
+                                                    )}
+                                                     {answer?.attachment && (
+                                                        <a href={answer.attachment.content} download={answer.attachment.name} className="mt-3 inline-flex items-center gap-2 px-3 py-1.5 rounded-lg font-semibold text-sm text-teal-700 bg-teal-50 border-2 border-teal-200 hover:bg-teal-100 hover:border-teal-300 transition-colors shadow-sm">
+                                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                                                            Baixar: {answer.attachment.name}
+                                                        </a>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        ) : (
+                             <div className="text-center bg-white p-12 rounded-lg border-2 border-dashed border-slate-300 mt-8">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-teal-500 mx-auto mb-4"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                                <h2 className="text-xl font-semibold text-slate-700">Nenhum ponto de melhoria!</h2>
+                                <p className="text-slate-500 mt-2 max-w-md mx-auto">
+                                    Baseado nas respostas, não foram identificadas deficiências de divulgação. Excelente trabalho!
+                                </p>
+                            </div>
+                        )}
+                    </div>
+                </main>
+            </div>
         </div>
     );
 };
@@ -281,10 +291,6 @@ const ReviewModal: React.FC<{
 const Report: React.FC<ReportProps> = ({ reportData, topics, onBackToList, activeTab, onTabChange }) => {
     const [isReviewModalOpen, setReviewModalOpen] = useState(false);
     const [selectedQuestionId, setSelectedQuestionId] = useState<string | null>(null);
-    const [preReport, setPreReport] = useState<string>('');
-    const [isGeneratingPreReport, setIsGeneratingPreReport] = useState<boolean>(false);
-    const [preReportError, setPreReportError] = useState<string | null>(null);
-
 
     const handleOpenReview = () => setReviewModalOpen(true);
     const handleCloseReview = () => setReviewModalOpen(false);
@@ -312,66 +318,6 @@ const Report: React.FC<ReportProps> = ({ reportData, topics, onBackToList, activ
     }, [reportData]);
     
     const answeredPercentage = summaryData.total > 0 ? (summaryData.answered / summaryData.total) * 100 : 0;
-
-    const handleGeneratePreReport = useCallback(async () => {
-        setIsGeneratingPreReport(true);
-        setPreReport('');
-        setPreReportError(null);
-
-        try {
-            const deficienciesList = reportData.deficiencies.length > 0
-                ? reportData.deficiencies.map(q => `- ${q.text} (Ref: ${q.reference})`).join('\n')
-                : 'Nenhuma deficiência específica (resposta "Falso") foi encontrada.';
-
-            const topicComplianceList = reportData.topicCompliance
-                .map(t => `- ${t.topic}: ${t.compliance.toFixed(1)}%`)
-                .join('\n');
-
-            const prompt = `
-                Você é um consultor especialista em normas IFRS. Baseado nos dados de diagnóstico a seguir, elabore uma análise preliminar concisa e objetiva sobre a conformidade da empresa com as normas IFRS S1 e S2.
-
-                **Dados do Diagnóstico:**
-                - **Empresa:** ${reportData.companyName}
-                - **Conformidade Geral Ponderada:** ${reportData.weightedCompliance.toFixed(1)}%
-                - **Perguntas Respondidas:** ${reportData.answeredQuestions} de ${reportData.totalQuestions}
-                - **Principais Deficiências (Perguntas respondidas com 'Falso'):**
-                ${deficienciesList}
-                - **Conformidade por Tópico:**
-                ${topicComplianceList}
-
-                **Instruções:**
-                1.  **Sumário Executivo:** Inicie com um parágrafo que resume o estado geral da conformidade da empresa, destacando o nível de prontidão para as divulgações IFRS S1 e S2.
-                2.  **Pontos Fortes:** Mencione 2-3 áreas onde a empresa demonstra maior conformidade, se houver.
-                3.  **Pontos de Melhoria:** Identifique as 2-3 áreas mais críticas que necessitam de atenção, focando nos tópicos com menor conformidade ou deficiências importantes.
-                4.  **Recomendações Iniciais:** Forneça uma lista (bullet points) de 3 a 5 recomendações práticas e de alto nível para a empresa começar a endereçar os pontos de melhoria.
-                5.  **Próximos Passos:** Conclua com uma breve nota sobre os próximos passos sugeridos para aprofundar a análise e desenvolver um plano de ação completo.
-
-                Use um tom profissional e direto. Formate a resposta usando markdown para clareza (títulos com '##' e listas com '*').
-            `;
-            
-            const apiResponse = await fetch('/api/generate-pre-report', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ prompt }),
-            });
-
-            if (!apiResponse.ok) {
-                const errorData = await apiResponse.json();
-                throw new Error(errorData.error || `API error: ${apiResponse.statusText}`);
-            }
-
-            const data = await apiResponse.json();
-            setPreReport(data.text);
-
-        } catch (error) {
-            console.error("Erro ao gerar pré-relatório:", error);
-            setPreReportError("Não foi possível gerar a análise. Verifique sua conexão ou a configuração do servidor e tente novamente.");
-        } finally {
-            setIsGeneratingPreReport(false);
-        }
-    }, [reportData]);
 
     const radarChartData = {
         labels: reportData.topicCompliance.map(t => t.topic),
@@ -479,57 +425,6 @@ const Report: React.FC<ReportProps> = ({ reportData, topics, onBackToList, activ
                             <div className="w-full h-80">
                                 <Radar data={radarChartData} options={radarChartOptions} />
                             </div>
-                        </div>
-
-                        <div className="bg-white rounded-xl shadow-lg p-6 border border-slate-200 md:col-span-2 lg:col-span-3">
-                            <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 mb-4">
-                                <h3 className="text-lg font-semibold text-slate-800">Análise Preliminar (IA)</h3>
-                                <button 
-                                    onClick={handleGeneratePreReport} 
-                                    disabled={isGeneratingPreReport}
-                                    className="px-4 py-2 rounded-lg font-semibold text-sm text-white bg-teal-600 hover:bg-teal-700 transition-colors flex items-center justify-center gap-2 shadow-sm disabled:bg-slate-400 disabled:cursor-wait"
-                                >
-                                    {isGeneratingPreReport ? (
-                                        <>
-                                            <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                            </svg>
-                                            Gerando...
-                                        </>
-                                    ) : (
-                                        <>
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>
-                                            Gerar Pré-Relatório
-                                        </>
-                                    )}
-                                </button>
-                            </div>
-                            
-                            {isGeneratingPreReport && (
-                                <div className="text-center py-8 text-slate-500">
-                                    <p>Aguarde, a inteligência artificial está analisando os dados...</p>
-                                    <p className="text-xs mt-1">Isso pode levar alguns segundos.</p>
-                                </div>
-                            )}
-
-                            {preReportError && (
-                                <div className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">
-                                    {preReportError}
-                                </div>
-                            )}
-
-                            {preReport && (
-                                <div className="animate-fade-in p-4 bg-slate-50/70 rounded-lg border border-slate-200/80 text-sm text-slate-700 leading-relaxed">
-                                   <SimpleMarkdownRenderer text={preReport} />
-                                </div>
-                            )}
-                            
-                            {!isGeneratingPreReport && !preReport && !preReportError && (
-                                <div className="text-center py-8 border-2 border-dashed border-slate-200 rounded-lg">
-                                    <p className="text-slate-500 text-sm max-w-lg mx-auto">Clique em "Gerar Pré-Relatório" para obter um resumo executivo e recomendações iniciais com base nos dados do diagnóstico.</p>
-                                </div>
-                            )}
                         </div>
                     </div>
                 </div>
